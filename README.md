@@ -1,4 +1,4 @@
-# OpenSearch Roaring Bitmap Aggregation Plugin
+# opensearch-roaring-aggs
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE.txt)
 [![OpenSearch](https://img.shields.io/badge/OpenSearch-2.19.x-orange.svg)](https://opensearch.org/)
@@ -75,14 +75,14 @@ This replaces millions of random-access lookups with sequential, cache-friendly,
 
 ```bash
 # Download the plugin ZIP from the releases page
-bin/opensearch-plugin install file:///path/to/opensearch-roaring-bitmap-aggregation-2.19.0.0.zip
+bin/opensearch-plugin install file:///path/to/opensearch-roaring-aggs-2.19.0.0.zip
 ```
 
 ### From Build Output
 
 ```bash
 # Build the plugin first (see "Building from Source" below)
-bin/opensearch-plugin install file:///path/to/opensearch-roaring-bitmap-aggregation/build/distributions/opensearch-roaring-bitmap-aggregation-2.19.0.0.zip
+bin/opensearch-plugin install file:///path/to/opensearch-roaring-aggs/build/distributions/opensearch-roaring-aggs-2.19.0.0.zip
 ```
 
 ### Security Permissions
@@ -100,7 +100,7 @@ Type `y` to accept.
 bin/opensearch-plugin list
 ```
 
-You should see `opensearch-roaring-bitmap-aggregation` in the output.
+You should see `opensearch-roaring-aggs` in the output.
 
 ### Restart OpenSearch
 
@@ -331,8 +331,8 @@ A terms aggregation optimized for Roaring Bitmap-indexed keyword fields.
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/opensearch-roaring-bitmap-aggregation.git
-cd opensearch-roaring-bitmap-aggregation
+git clone https://github.com/rajat315315/opensearch-roaring-aggs.git
+cd opensearch-roaring-aggs
 
 # Build the plugin (includes running tests)
 ./gradlew build
@@ -343,7 +343,7 @@ cd opensearch-roaring-bitmap-aggregation
 
 The plugin ZIP will be located at:
 ```
-build/distributions/opensearch-roaring-bitmap-aggregation-2.19.0.0.zip
+build/distributions/opensearch-roaring-aggs-2.19.0.0.zip
 ```
 
 ## Running Tests
@@ -371,7 +371,7 @@ build/distributions/opensearch-roaring-bitmap-aggregation-2.19.0.0.zip
 
 ```bash
 # Remove the plugin
-bin/opensearch-plugin remove opensearch-roaring-bitmap-aggregation
+bin/opensearch-plugin remove opensearch-roaring-aggs
 
 # Restart OpenSearch
 sudo systemctl restart opensearch

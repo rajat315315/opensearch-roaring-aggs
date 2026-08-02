@@ -40,7 +40,7 @@ task generatePluginDescriptor {
     doLast {
         outputDir.mkdirs()
         def props = new Properties()
-        props.setProperty('name', 'opensearch-roaring-bitmap-aggregation')
+        props.setProperty('name', 'opensearch-roaring-aggs')
         props.setProperty('description', 'Opt-in Roaring Bitmap indexing for high-cardinality multi-valued aggregations')
         props.setProperty('version', "${plugin_version}")
         props.setProperty('opensearch.version', "${opensearch_version}")
@@ -74,7 +74,7 @@ task pluginZip(type: Zip) {
     from('NOTICE.txt')
     from('plugin-security.policy')
     into '/'
-    archiveBaseName.set('opensearch-roaring-bitmap-aggregation')
+    archiveBaseName.set('opensearch-roaring-aggs')
     destinationDirectory.set(file("${buildDir}/distributions"))
 }
 
