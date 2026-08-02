@@ -6,6 +6,16 @@ OPENSEARCH_URL = "http://localhost:9200"
 DATASET_PATH = "/run/media/rajat/Ubuntu/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.clean1m.txt"
 DOC_LIMIT = 1000000  # Index 1,000,000 documents for full scale benchmark
 
+def http_get(path):
+    url = f"{OPENSEARCH_URL}{path}"
+    req = urllib.request.Request(url)
+    try:
+        with urllib.request.urlopen(req) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        print(f"HTTP Error {e.code} on GET {path}: {e.read().decode('utf-8')}")
+        raise e
+
 def http_post(path, data):
     url = f"{OPENSEARCH_URL}{path}"
     req = urllib.request.Request(
@@ -186,15 +196,16 @@ def print_index_sizes():
     print("========================================================\n")
 
 def measure_query(index_name, query_body, iters=10):
+    url_path = f"/{index_name}/_search?request_cache=false"
     # Warmup
     for _ in range(3):
-        http_post(f"/{index_name}/_search", query_body)
+        http_post(url_path, query_body)
 
     latencies = []
     last_res = {}
     for _ in range(iters):
         t0 = time.time()
-        last_res = http_post(f"/{index_name}/_search", query_body)
+        last_res = http_post(url_path, query_body)
         latencies.append((time.time() - t0) * 1000)
 
     avg_lat = sum(latencies) / len(latencies)
@@ -207,8 +218,8 @@ def run_benchmark_scenario(scenario_name, filter_query, field_name, agg_size=10)
     print(f"  SCENARIO: {scenario_name} (size={agg_size})")
     print(f"========================================================")
 
-    q_def = {"size": 0, "request_cache": False, "aggs": {"top_words": {"terms": {"field": field_name, "size": agg_size}}}}
-    q_roar = {"size": 0, "request_cache": False, "aggs": {"top_words": {"roaring_terms": {"field": field_name, "size": agg_size}}}}
+    q_def = {"size": 0, "aggs": {"top_words": {"terms": {"field": field_name, "size": agg_size}}}}
+    q_roar = {"size": 0, "aggs": {"top_words": {"roaring_terms": {"field": field_name, "size": agg_size}}}}
 
     if filter_query:
         q_def["query"] = filter_query
