@@ -111,10 +111,15 @@ Below are empirical, uncached benchmark results measured on **1,000,000 real Wik
 
 ## Installation
 
-### From Pre-built Release
+### From GitHub Releases (Recommended)
 
 ```bash
-# Download the plugin ZIP from the releases page
+bin/opensearch-plugin install https://github.com/rajat315315/opensearch-roaring-aggs/releases/download/v2.19.0.0/opensearch-roaring-aggs-2.19.0.0.zip
+```
+
+### From Local File
+
+```bash
 bin/opensearch-plugin install file:///path/to/opensearch-roaring-aggs-2.19.0.0.zip
 ```
 
