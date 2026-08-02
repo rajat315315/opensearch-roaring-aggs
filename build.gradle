@@ -1,0 +1,92 @@
+plugins {
+    id 'java'
+}
+
+group = 'org.opensearch.plugin'
+version = "${plugin_version}"
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url "https://artifacts.opensearch.org/releases/"
+    }
+}
+
+dependencies {
+    // OpenSearch core (compile-only; provided at runtime by the OpenSearch node)
+    compileOnly "org.opensearch:opensearch:${opensearch_version}"
+
+    // Roaring Bitmap library (bundled with the plugin)
+    implementation "org.roaringbitmap:RoaringBitmap:${roaring_version}"
+
+    // Test dependencies
+    testImplementation "org.opensearch.test:framework:${opensearch_version}"
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation "org.opensearch:opensearch:${opensearch_version}"
+}
+
+// ---------------------------------------------------------------------------
+// Generate plugin-descriptor.properties (normally done by the opensearchplugin
+// Gradle plugin, but we generate it manually for a standalone build).
+// ---------------------------------------------------------------------------
+task generatePluginDescriptor {
+    def outputDir = file("${buildDir}/generated/plugin-descriptor")
+    outputs.dir outputDir
+    doLast {
+        outputDir.mkdirs()
+        def props = new Properties()
+        props.setProperty('name', 'opensearch-roaring-bitmap-aggregation')
+        props.setProperty('description', 'Opt-in Roaring Bitmap indexing for high-cardinality multi-valued aggregations')
+        props.setProperty('version', "${plugin_version}")
+        props.setProperty('opensearch.version', "${opensearch_version}")
+        props.setProperty('java.version', '17')
+        props.setProperty('classname', 'org.opensearch.plugin.roaring.RoaringBitmapPlugin')
+        props.setProperty('has.native.controller', 'false')
+        file("${outputDir}/plugin-descriptor.properties").withWriter { writer ->
+            props.store(writer, null)
+        }
+    }
+}
+
+processResources.dependsOn generatePluginDescriptor
+
+sourceSets {
+    main {
+        resources {
+            srcDir "${buildDir}/generated/plugin-descriptor"
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Build the plugin distribution zip
+// ---------------------------------------------------------------------------
+task pluginZip(type: Zip) {
+    dependsOn jar
+    from jar.archiveFile
+    from configurations.runtimeClasspath
+    from('LICENSE.txt')
+    from('NOTICE.txt')
+    from('plugin-security.policy')
+    into '/'
+    archiveBaseName.set('opensearch-roaring-bitmap-aggregation')
+    destinationDirectory.set(file("${buildDir}/distributions"))
+}
+
+assemble.dependsOn pluginZip
+
+test {
+    useJUnit()
+    jvmArgs '--add-opens', 'java.base/java.lang=ALL-UNNAMED'
+    jvmArgs '--add-opens', 'java.base/java.util=ALL-UNNAMED'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-Xlint:none'
+}
