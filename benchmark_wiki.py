@@ -185,84 +185,68 @@ def print_index_sizes():
         print(f"Error fetching index store sizes: {e}")
     print("========================================================\n")
 
-def run_benchmarks():
-    print("\n========================================================")
-    print("      BENCHMARK: Wikimedia Terms Aggregation          ")
-    print("      (Request Cache Explicitly Disabled)             ")
-    print("========================================================")
-
-    # 1. Standard Terms Aggregation on wiki_default
-    query_default = {
-        "size": 0,
-        "request_cache": False,
-        "aggs": {
-            "top_words": {
-                "terms": {
-                    "field": "words",
-                    "size": 10
-                }
-            }
-        }
-    }
-
+def measure_query(index_name, query_body, iters=10):
     # Warmup
     for _ in range(3):
-        http_post("/wiki_default/_search", query_default)
+        http_post(f"/{index_name}/_search", query_body)
 
-    # Measure Standard Terms Agg
-    latencies_default = []
-    for _ in range(10):
+    latencies = []
+    last_res = {}
+    for _ in range(iters):
         t0 = time.time()
-        res_def = http_post("/wiki_default/_search", query_default)
-        latencies_default.append((time.time() - t0) * 1000)
+        last_res = http_post(f"/{index_name}/_search", query_body)
+        latencies.append((time.time() - t0) * 1000)
 
-    avg_def = sum(latencies_default) / len(latencies_default)
-    took_def = res_def.get("took", 0)
+    avg_lat = sum(latencies) / len(latencies)
+    took_ms = last_res.get("took", 0)
+    buckets = last_res.get("aggregations", {}).get("top_words", {}).get("buckets", [])
+    return avg_lat, took_ms, buckets
 
-    # 2. Roaring Terms Aggregation on wiki_roaring
-    query_roaring = {
-        "size": 0,
-        "request_cache": False,
-        "aggs": {
-            "top_words": {
-                "roaring_terms": {
-                    "field": "words",
-                    "size": 10
-                }
-            }
-        }
-    }
+def run_benchmark_scenario(scenario_name, filter_query, field_name):
+    print(f"\n========================================================")
+    print(f"  SCENARIO: {scenario_name}")
+    print(f"========================================================")
 
-    # Warmup
-    for _ in range(3):
-        http_post("/wiki_roaring/_search", query_roaring)
+    q_def = {"size": 0, "request_cache": False, "aggs": {"top_words": {"terms": {"field": field_name, "size": 10}}}}
+    q_roar = {"size": 0, "request_cache": False, "aggs": {"top_words": {"roaring_terms": {"field": field_name, "size": 10}}}}
 
-    # Measure Roaring Terms Agg
-    latencies_roaring = []
-    for _ in range(10):
-        t0 = time.time()
-        res_roaring = http_post("/wiki_roaring/_search", query_roaring)
-        latencies_roaring.append((time.time() - t0) * 1000)
+    if filter_query:
+        q_def["query"] = filter_query
+        q_roar["query"] = filter_query
 
-    avg_roaring = sum(latencies_roaring) / len(latencies_roaring)
-    took_roaring = res_roaring.get("took", 0)
+    avg_def, took_def, buckets_def = measure_query("wiki_default", q_def)
+    avg_roar, took_roar, buckets_roar = measure_query("wiki_roaring", q_roar)
 
-    print(f"\n--- Standard Terms Aggregation (wiki_default) ---")
+    print(f"--- Standard Terms Aggregation (wiki_default) ---")
     print(f"Avg Client Latency: {avg_def:.2f} ms | OpenSearch took: {took_def} ms")
-    buckets_def = res_def.get("aggregations", {}).get("top_words", {}).get("buckets", [])
     for b in buckets_def[:5]:
         print(f"  - {b['key']}: {b['doc_count']}")
 
     print(f"\n--- Roaring Terms Aggregation (wiki_roaring) ---")
-    print(f"Avg Client Latency: {avg_roaring:.2f} ms | OpenSearch took: {took_roaring} ms")
-    buckets_roaring = res_roaring.get("aggregations", {}).get("top_words", {}).get("buckets", [])
-    for b in buckets_roaring[:5]:
+    print(f"Avg Client Latency: {avg_roar:.2f} ms | OpenSearch took: {took_roar} ms")
+    for b in buckets_roar[:5]:
         print(f"  - {b['key']}: {b['doc_count']}")
 
-    if avg_roaring > 0:
-        speedup = avg_def / avg_roaring
+    if avg_roar > 0:
+        speedup = avg_def / avg_roar
         print(f"\n🚀 SPEEDUP: Roaring Terms Aggregation is {speedup:.2f}x FASTER!")
-    print("========================================================\n")
+    print("--------------------------------------------------------")
+
+def run_benchmarks():
+    print("\n========================================================")
+    print("      BENCHMARK SUITE: Wikimedia Terms Aggregations     ")
+    print("      (Request Cache Explicitly Disabled)             ")
+    print("========================================================")
+
+    # 1. Multi-valued Body Words Aggregation
+    run_benchmark_scenario("Unfiltered Multi-Valued Body Words (words)", None, "words")
+
+    # 2. Document Title Terms Aggregation
+    run_benchmark_scenario("Unfiltered Document Title Terms (doctitle)", None, "doctitle")
+
+    # 3. Filtered Aggregation (label == LABEL_1)
+    filter_label = {"term": {"label": "LABEL_1"}}
+    run_benchmark_scenario("Filtered Aggregation (query: label=LABEL_1 on field: words)", filter_label, "words")
 
 if __name__ == "__main__":
     setup_indices()
