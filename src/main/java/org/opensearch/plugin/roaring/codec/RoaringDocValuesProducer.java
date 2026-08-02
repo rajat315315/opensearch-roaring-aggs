@@ -68,14 +68,21 @@ public class RoaringDocValuesProducer extends DocValuesProducer {
 
     private final IndexInput dataIn;
     private final Map<String, FieldMeta> fields;
+    private final DocValuesProducer delegateProducer;
+
+    public RoaringDocValuesProducer(SegmentReadState state) throws IOException {
+        this(state, null);
+    }
 
     /**
      * Opens the metadata and data files, reads all field metadata.
      *
-     * @param state the segment read state providing directory and segment info
+     * @param state            the segment read state providing directory and segment info
+     * @param delegateProducer fallback producer for non-SortedSet field types
      * @throws IOException if the files cannot be opened or are corrupt
      */
-    public RoaringDocValuesProducer(SegmentReadState state) throws IOException {
+    public RoaringDocValuesProducer(SegmentReadState state, DocValuesProducer delegateProducer) throws IOException {
+        this.delegateProducer = delegateProducer;
         Map<String, FieldMeta> fieldMap = new HashMap<>();
 
         // Read metadata
@@ -233,32 +240,42 @@ public class RoaringDocValuesProducer extends DocValuesProducer {
 
     @Override
     public NumericDocValues getNumeric(FieldInfo field) throws IOException {
-        throw new UnsupportedOperationException("RoaringDocValues does not support NumericDocValues");
+        return delegateProducer != null ? delegateProducer.getNumeric(field) : null;
     }
 
     @Override
     public BinaryDocValues getBinary(FieldInfo field) throws IOException {
-        throw new UnsupportedOperationException("RoaringDocValues does not support BinaryDocValues");
+        return delegateProducer != null ? delegateProducer.getBinary(field) : null;
     }
 
     @Override
     public SortedDocValues getSorted(FieldInfo field) throws IOException {
-        throw new UnsupportedOperationException("RoaringDocValues does not support SortedDocValues");
+        return delegateProducer != null ? delegateProducer.getSorted(field) : null;
     }
 
     @Override
     public SortedNumericDocValues getSortedNumeric(FieldInfo field) throws IOException {
-        throw new UnsupportedOperationException("RoaringDocValues does not support SortedNumericDocValues");
+        return delegateProducer != null ? delegateProducer.getSortedNumeric(field) : null;
     }
 
     @Override
     public void checkIntegrity() throws IOException {
-        // Integrity was checked on open via CodecUtil headers
+        if (delegateProducer != null) {
+            delegateProducer.checkIntegrity();
+        }
     }
 
     @Override
     public void close() throws IOException {
-        dataIn.close();
+        try {
+            if (dataIn != null) {
+                dataIn.close();
+            }
+        } finally {
+            if (delegateProducer != null) {
+                delegateProducer.close();
+            }
+        }
     }
 
     // -----------------------------------------------------------------------

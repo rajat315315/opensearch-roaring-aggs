@@ -25,6 +25,8 @@ import org.opensearch.search.aggregations.LeafBucketCollector;
 import org.opensearch.search.aggregations.LeafBucketCollectorBase;
 import org.opensearch.search.internal.SearchContext;
 
+import org.opensearch.plugin.roaring.codec.RoaringCodec;
+import org.opensearch.plugin.roaring.codec.RoaringDocValuesFormat;
 import org.opensearch.plugin.roaring.codec.RoaringDocValuesProducer;
 import org.opensearch.plugin.roaring.util.BitsetUtil;
 
@@ -214,8 +216,11 @@ public class RoaringTermsAggregator extends AggregatorBase {
                 // The codec should be the RoaringCodec if the index was created with it
                 org.apache.lucene.codecs.DocValuesFormat dvFormat =
                     segmentReader.getSegmentInfo().info.getCodec().docValuesFormat();
+                String codecName = segmentReader.getSegmentInfo().info.getCodec().getName();
 
-                if (dvFormat instanceof org.opensearch.plugin.roaring.codec.RoaringDocValuesFormat) {
+                if (RoaringCodec.CODEC_NAME.equals(codecName) ||
+                    RoaringDocValuesFormat.FORMAT_NAME.equals(dvFormat.getName()) ||
+                    dvFormat instanceof org.opensearch.plugin.roaring.codec.RoaringDocValuesFormat) {
                     return new RoaringDocValuesProducer(
                         new org.apache.lucene.index.SegmentReadState(
                             segmentReader.directory(),
@@ -224,8 +229,8 @@ public class RoaringTermsAggregator extends AggregatorBase {
                             org.apache.lucene.store.IOContext.READ));
                 }
             }
-        } catch (IOException e) {
-            // If we can't get the producer, fall through to null
+        } catch (Exception e) {
+            e.printStackTrace();
         }
         return null;
     }

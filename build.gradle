@@ -21,8 +21,8 @@ dependencies {
     // OpenSearch core (compile-only; provided at runtime by the OpenSearch node)
     compileOnly "org.opensearch:opensearch:${opensearch_version}"
 
-    // Roaring Bitmap library (bundled with the plugin)
-    implementation "org.roaringbitmap:RoaringBitmap:${roaring_version}"
+    // Roaring Bitmap library (provided by OpenSearch runtime lib/)
+    compileOnly "org.roaringbitmap:RoaringBitmap:${roaring_version}"
 
     // Test dependencies
     testImplementation "org.opensearch.test:framework:${opensearch_version}"
@@ -68,8 +68,10 @@ sourceSets {
 // ---------------------------------------------------------------------------
 task pluginZip(type: Zip) {
     dependsOn jar
+    dependsOn generatePluginDescriptor
     from jar.archiveFile
     from configurations.runtimeClasspath
+    from generatePluginDescriptor
     from('LICENSE.txt')
     from('NOTICE.txt')
     from('plugin-security.policy')

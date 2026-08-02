@@ -47,17 +47,24 @@ import java.util.List;
 public class RoaringDocValuesConsumer extends DocValuesConsumer {
 
     private final SegmentWriteState state;
+    private final DocValuesConsumer delegateConsumer;
     private final IndexOutput metaOut;
     private final IndexOutput dataOut;
+
+    public RoaringDocValuesConsumer(SegmentWriteState state) throws IOException {
+        this(state, null);
+    }
 
     /**
      * Creates a new consumer, opening the metadata and data output files.
      *
-     * @param state the segment write state providing directory and segment info
+     * @param state            the segment write state providing directory and segment info
+     * @param delegateConsumer fallback consumer for non-SortedSet field types
      * @throws IOException if the files cannot be created
      */
-    public RoaringDocValuesConsumer(SegmentWriteState state) throws IOException {
+    public RoaringDocValuesConsumer(SegmentWriteState state, DocValuesConsumer delegateConsumer) throws IOException {
         this.state = state;
+        this.delegateConsumer = delegateConsumer;
 
         boolean success = false;
         try {
@@ -198,26 +205,30 @@ public class RoaringDocValuesConsumer extends DocValuesConsumer {
 
     @Override
     public void addNumericField(FieldInfo field, DocValuesProducer valuesProducer) throws IOException {
-        throw new UnsupportedOperationException(
-            "RoaringDocValues does not support NumericDocValues. Field: " + field.name);
+        if (delegateConsumer != null) {
+            delegateConsumer.addNumericField(field, valuesProducer);
+        }
     }
 
     @Override
     public void addBinaryField(FieldInfo field, DocValuesProducer valuesProducer) throws IOException {
-        throw new UnsupportedOperationException(
-            "RoaringDocValues does not support BinaryDocValues. Field: " + field.name);
+        if (delegateConsumer != null) {
+            delegateConsumer.addBinaryField(field, valuesProducer);
+        }
     }
 
     @Override
     public void addSortedField(FieldInfo field, DocValuesProducer valuesProducer) throws IOException {
-        throw new UnsupportedOperationException(
-            "RoaringDocValues does not support SortedDocValues. Field: " + field.name);
+        if (delegateConsumer != null) {
+            delegateConsumer.addSortedField(field, valuesProducer);
+        }
     }
 
     @Override
     public void addSortedNumericField(FieldInfo field, DocValuesProducer valuesProducer) throws IOException {
-        throw new UnsupportedOperationException(
-            "RoaringDocValues does not support SortedNumericDocValues. Field: " + field.name);
+        if (delegateConsumer != null) {
+            delegateConsumer.addSortedNumericField(field, valuesProducer);
+        }
     }
 
     @Override
@@ -229,6 +240,9 @@ public class RoaringDocValuesConsumer extends DocValuesConsumer {
             }
             if (dataOut != null) {
                 CodecUtil.writeFooter(dataOut);
+            }
+            if (delegateConsumer != null) {
+                delegateConsumer.close();
             }
             success = true;
         } finally {
@@ -242,6 +256,9 @@ public class RoaringDocValuesConsumer extends DocValuesConsumer {
                 } catch (IOException ignored) {}
                 try {
                     if (dataOut != null) dataOut.close();
+                } catch (IOException ignored) {}
+                try {
+                    if (delegateConsumer != null) delegateConsumer.close();
                 } catch (IOException ignored) {}
             }
         }

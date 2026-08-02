@@ -1,7 +1,1 @@
-grant {
-    // Required for memory-mapped file I/O on index data files (.rvd, .rvm)
-    permission java.io.FilePermission "<<ALL FILES>>", "read,write,delete";
-    // Required for RoaringBitmap off-heap buffer allocations
-    permission java.lang.RuntimePermission "accessDeclaredMembers";
-    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
-};
+// Empty security policy file

@@ -55,20 +55,30 @@ public class RoaringDocValuesFormat extends DocValuesFormat {
     /** Current format version. */
     static final int VERSION_CURRENT = 0;
 
-    /**
-     * Creates a new instance with the default format name.
-     */
-    public RoaringDocValuesFormat() {
+    private final DocValuesFormat delegateFormat;
+
+    public RoaringDocValuesFormat(DocValuesFormat delegateFormat) {
         super(FORMAT_NAME);
+        this.delegateFormat = delegateFormat;
+    }
+
+    public RoaringDocValuesFormat() {
+        this(null);
+    }
+
+    private DocValuesFormat getDelegateFormat() {
+        return delegateFormat != null ? delegateFormat : DocValuesFormat.forName("Lucene90");
     }
 
     @Override
     public DocValuesConsumer fieldsConsumer(SegmentWriteState state) throws IOException {
-        return new RoaringDocValuesConsumer(state);
+        DocValuesConsumer delegateConsumer = getDelegateFormat().fieldsConsumer(state);
+        return new RoaringDocValuesConsumer(state, delegateConsumer);
     }
 
     @Override
     public DocValuesProducer fieldsProducer(SegmentReadState state) throws IOException {
-        return new RoaringDocValuesProducer(state);
+        DocValuesProducer delegateProducer = getDelegateFormat().fieldsProducer(state);
+        return new RoaringDocValuesProducer(state, delegateProducer);
     }
 }
