@@ -90,15 +90,15 @@ Below are empirical, uncached benchmark results measured on **1,000,000 real Wik
 
 ### ⚡ Uncached Aggregation Latency & Speedup Benchmarks
 
-| # | Benchmark Scenario | Field Type & Cardinality | Agg Size | Standard (`terms`) | Roaring (`roaring_terms`) | 🚀 Speedup |
+| # | Scenario | Field Type | Size | Standard (`terms`) | Roaring (`roaring_terms`) | Speedup |
 | :-: | :--- | :--- | :-: | :-: | :-: | :-: |
-| **1** | **Low Cardinality Field** | Single-Valued (`label`) | `size=10` | 490.77 ms (577ms OS) | **40.56 ms (17ms OS)** | **12.10x Faster** |
-| **2** | **Multi-Valued Body Words** | Multi-Valued (`words`) | `size=10` | 6,818.71 ms (7,316ms OS) | **15.51 ms (13ms OS)** | **439.52x Faster** |
-| **3** | **Multi-Valued Body Words** | Multi-Valued (`words`) | `size=100` | 7,647.21 ms (8,573ms OS) | **20.08 ms (23ms OS)** | **380.76x Faster** |
-| **4** | **Multi-Valued Body Words** | Multi-Valued (`words`) | `size=500` | 7,587.67 ms (7,366ms OS) | **42.11 ms (22ms OS)** | **180.17x Faster** |
-| **5** | **Document Title Terms** | High Cardinality (`doctitle`) | `size=10` | 2,661.20 ms (2,752ms OS) | **37.70 ms (15ms OS)** | **70.60x Faster** |
-| **6** | **Document Title Terms** | High Cardinality (`doctitle`) | `size=100` | 2,826.59 ms (2,664ms OS) | **17.85 ms (12ms OS)** | **158.38x Faster** |
-| **7** | **Filtered Query** | `label=LABEL_1` on `words` | `size=10` | 12.97 ms (15ms OS) | **4.68 ms (2ms OS)** | **2.77x Faster** |
+| **1** | Low Cardinality | Single-valued (`label`) | 10 | 490.77 ms | **40.56 ms** | **12.10x** |
+| **2** | Multi-Valued Body | Multi-valued (`words`) | 10 | 6,818.71 ms | **15.51 ms** | **439.52x** |
+| **3** | Multi-Valued Body | Multi-valued (`words`) | 100 | 7,647.21 ms | **20.08 ms** | **380.76x** |
+| **4** | Multi-Valued Body | Multi-valued (`words`) | 500 | 7,587.67 ms | **42.11 ms** | **180.17x** |
+| **5** | Document Titles | High-cardinality (`doctitle`) | 10 | 2,661.20 ms | **37.70 ms** | **70.60x** |
+| **6** | Document Titles | High-cardinality (`doctitle`) | 100 | 2,826.59 ms | **17.85 ms** | **158.38x** |
+| **7** | Filtered Query | `label=LABEL_1` on `words` | 10 | 12.97 ms | **4.68 ms** | **2.77x** |
 
 ---
 
