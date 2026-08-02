@@ -159,14 +159,42 @@ def index_wikimedia_data():
     http_post("/wiki_roaring/_refresh", {})
     print(f"Finished indexing {count} Wikimedia documents in {time.time() - start_time:.2f}s.")
 
+def print_index_sizes():
+    print("\n========================================================")
+    print("      INDEX DISK STORAGE COMPARISON                     ")
+    print("========================================================")
+    try:
+        stats = http_get("/wiki_default,wiki_roaring/_stats/store")
+        indices = stats.get("indices", {})
+        size_def_bytes = indices.get("wiki_default", {}).get("total", {}).get("store", {}).get("size_in_bytes", 0)
+        size_roaring_bytes = indices.get("wiki_roaring", {}).get("total", {}).get("store", {}).get("size_in_bytes", 0)
+
+        size_def_mb = size_def_bytes / (1024 * 1024)
+        size_roaring_mb = size_roaring_bytes / (1024 * 1024)
+
+        print(f"Standard Index (wiki_default) Size : {size_def_mb:.2f} MB ({size_def_bytes:,} bytes)")
+        print(f"Roaring Index  (wiki_roaring) Size : {size_roaring_mb:.2f} MB ({size_roaring_bytes:,} bytes)")
+
+        if size_def_bytes > 0:
+            diff_pct = ((size_roaring_bytes - size_def_bytes) / size_def_bytes) * 100
+            if diff_pct < 0:
+                print(f"💾 DISK SAVINGS: Roaring Codec is {abs(diff_pct):.1f}% SMALLER on disk!")
+            else:
+                print(f"💾 DISK SIZE DIFFERENCE: Roaring Codec is {diff_pct:.1f}% larger (stores explicit Bitmaps per term)")
+    except Exception as e:
+        print(f"Error fetching index store sizes: {e}")
+    print("========================================================\n")
+
 def run_benchmarks():
     print("\n========================================================")
     print("      BENCHMARK: Wikimedia Terms Aggregation          ")
+    print("      (Request Cache Explicitly Disabled)             ")
     print("========================================================")
 
     # 1. Standard Terms Aggregation on wiki_default
     query_default = {
         "size": 0,
+        "request_cache": False,
         "aggs": {
             "top_words": {
                 "terms": {
@@ -194,6 +222,7 @@ def run_benchmarks():
     # 2. Roaring Terms Aggregation on wiki_roaring
     query_roaring = {
         "size": 0,
+        "request_cache": False,
         "aggs": {
             "top_words": {
                 "roaring_terms": {
@@ -238,4 +267,5 @@ def run_benchmarks():
 if __name__ == "__main__":
     setup_indices()
     index_wikimedia_data()
+    print_index_sizes()
     run_benchmarks()
