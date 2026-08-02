@@ -169,6 +169,83 @@ def index_wikimedia_data():
     http_post("/wiki_roaring/_refresh", {})
     print(f"Finished indexing {count} Wikimedia documents in {time.time() - start_time:.2f}s.")
 
+def benchmark_indexing_latency(doc_limit=50000):
+    print("\n========================================================")
+    print("      BENCHMARK: INDEXING LATENCY & THROUGHPUT         ")
+    print(f"      ({doc_limit:,} Wikimedia Documents)             ")
+    print("========================================================")
+
+    # Setup temp indices
+    http_delete("/idx_test_default")
+    http_delete("/idx_test_roaring")
+
+    mapping_def = {"settings": {"number_of_shards": 1, "number_of_replicas": 0}, "mappings": {"properties": {"doctitle": {"type": "keyword"}, "docdate": {"type": "keyword"}, "label": {"type": "keyword"}, "words": {"type": "keyword"}}}}
+    mapping_roar = {"settings": {"index.codec": "RoaringCodec", "number_of_shards": 1, "number_of_replicas": 0}, "mappings": {"properties": {"doctitle": {"type": "keyword"}, "docdate": {"type": "keyword"}, "label": {"type": "keyword"}, "words": {"type": "keyword"}}}}
+
+    http_put("/idx_test_default", mapping_def)
+    http_put("/idx_test_roaring", mapping_roar)
+
+    # Read docs
+    docs_payload = []
+    with open(DATASET_PATH, "r", encoding="utf-8", errors="ignore") as f:
+        f.readline()
+        for line in f:
+            parts = line.strip().split("\t")
+            if len(parts) < 4: continue
+            words = list(set([w.strip().lower() for w in parts[2].split() if len(w) > 3]))[:15]
+            doc = {"doctitle": parts[0], "docdate": parts[1], "label": parts[3], "words": words}
+            action = json.dumps({"index": {}})
+            docs_payload.append(f"{action}\n{json.dumps(doc)}\n")
+            if len(docs_payload) >= doc_limit: break
+
+    batch_size = 2000
+
+    # 1. Measure Standard Indexing
+    print("Indexing into Standard Index (Lucene90)...")
+    latencies_def = []
+    t0_def = time.time()
+    for i in range(0, len(docs_payload), batch_size):
+        chunk = "".join(docs_payload[i:i+batch_size])
+        t_b = time.time()
+        http_post("/idx_test_default/_bulk", chunk)
+        latencies_def.append((time.time() - t_b) * 1000)
+    http_post("/idx_test_default/_refresh", {})
+    total_time_def = time.time() - t0_def
+    throughput_def = len(docs_payload) / total_time_def
+    avg_bulk_def = sum(latencies_def) / len(latencies_def)
+
+    # 2. Measure Roaring Indexing
+    print("Indexing into Roaring Index (RoaringCodec)...")
+    latencies_roar = []
+    t0_roar = time.time()
+    for i in range(0, len(docs_payload), batch_size):
+        chunk = "".join(docs_payload[i:i+batch_size])
+        t_b = time.time()
+        http_post("/idx_test_roaring/_bulk", chunk)
+        latencies_roar.append((time.time() - t_b) * 1000)
+    http_post("/idx_test_roaring/_refresh", {})
+    total_time_roar = time.time() - t0_roar
+    throughput_roar = len(docs_payload) / total_time_roar
+    avg_bulk_roar = sum(latencies_roar) / len(latencies_roar)
+
+    # Cleanup temp indices
+    http_delete("/idx_test_default")
+    http_delete("/idx_test_roaring")
+
+    print(f"\n--- Standard Indexing (wiki_default) ---")
+    print(f"Total Time       : {total_time_def:.2f} s")
+    print(f"Throughput       : {throughput_def:.0f} docs/sec")
+    print(f"Avg Bulk Latency : {avg_bulk_def:.2f} ms per 2k batch")
+
+    print(f"\n--- Roaring Indexing (wiki_roaring) ---")
+    print(f"Total Time       : {total_time_roar:.2f} s")
+    print(f"Throughput       : {throughput_roar:.0f} docs/sec")
+    print(f"Avg Bulk Latency : {avg_bulk_roar:.2f} ms per 2k batch")
+
+    overhead_pct = ((total_time_roar - total_time_def) / total_time_def) * 100
+    print(f"\n📊 Indexing Overhead: Roaring Codec takes {overhead_pct:+.1f}% time during indexing (transposes bitmaps at flush time)")
+    print("========================================================\n")
+
 def print_index_sizes():
     print("\n========================================================")
     print("      INDEX DISK STORAGE COMPARISON                     ")
