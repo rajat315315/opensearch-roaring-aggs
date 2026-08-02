@@ -202,13 +202,13 @@ def measure_query(index_name, query_body, iters=10):
     buckets = last_res.get("aggregations", {}).get("top_words", {}).get("buckets", [])
     return avg_lat, took_ms, buckets
 
-def run_benchmark_scenario(scenario_name, filter_query, field_name):
+def run_benchmark_scenario(scenario_name, filter_query, field_name, agg_size=10):
     print(f"\n========================================================")
-    print(f"  SCENARIO: {scenario_name}")
+    print(f"  SCENARIO: {scenario_name} (size={agg_size})")
     print(f"========================================================")
 
-    q_def = {"size": 0, "request_cache": False, "aggs": {"top_words": {"terms": {"field": field_name, "size": 10}}}}
-    q_roar = {"size": 0, "request_cache": False, "aggs": {"top_words": {"roaring_terms": {"field": field_name, "size": 10}}}}
+    q_def = {"size": 0, "request_cache": False, "aggs": {"top_words": {"terms": {"field": field_name, "size": agg_size}}}}
+    q_roar = {"size": 0, "request_cache": False, "aggs": {"top_words": {"roaring_terms": {"field": field_name, "size": agg_size}}}}
 
     if filter_query:
         q_def["query"] = filter_query
@@ -238,15 +238,21 @@ def run_benchmarks():
     print("      (Request Cache Explicitly Disabled)             ")
     print("========================================================")
 
-    # 1. Multi-valued Body Words Aggregation
-    run_benchmark_scenario("Unfiltered Multi-Valued Body Words (words)", None, "words")
+    # 1. Low Cardinality Field (label) - size 10
+    run_benchmark_scenario("Low Cardinality Field (label)", None, "label", agg_size=10)
 
-    # 2. Document Title Terms Aggregation
-    run_benchmark_scenario("Unfiltered Document Title Terms (doctitle)", None, "doctitle")
+    # 2. Multi-valued Body Words (words) - size 10 vs size 100 vs size 500
+    run_benchmark_scenario("Unfiltered Body Words (words)", None, "words", agg_size=10)
+    run_benchmark_scenario("Unfiltered Body Words (words)", None, "words", agg_size=100)
+    run_benchmark_scenario("Unfiltered Body Words (words)", None, "words", agg_size=500)
 
-    # 3. Filtered Aggregation (label == LABEL_1)
+    # 3. High Cardinality Document Titles (doctitle) - size 10 vs size 100
+    run_benchmark_scenario("High Cardinality Document Titles (doctitle)", None, "doctitle", agg_size=10)
+    run_benchmark_scenario("High Cardinality Document Titles (doctitle)", None, "doctitle", agg_size=100)
+
+    # 4. Filtered Aggregation (label == LABEL_1) - size 10
     filter_label = {"term": {"label": "LABEL_1"}}
-    run_benchmark_scenario("Filtered Aggregation (query: label=LABEL_1 on field: words)", filter_label, "words")
+    run_benchmark_scenario("Filtered Aggregation (query: label=LABEL_1 on words)", filter_label, "words", agg_size=10)
 
 if __name__ == "__main__":
     setup_indices()
