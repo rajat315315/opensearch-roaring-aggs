@@ -102,23 +102,28 @@ Below are empirical, uncached benchmark results measured on **1,000,000 real Wik
 
 ---
 
-### 🚀 Bulk Indexing Latency & Throughput
+### 🚀 Bulk Indexing Throughput & Latency
 
-Measured by bulk indexing 50,000 Wikipedia documents in 2,000-document batches:
+Measured on 50,000 Wikipedia documents in 2,000-document bulk batches (isolated standalone runs):
 
 | Metric | Standard Codec (`Lucene90`) | Roaring Codec (`RoaringCodec`) | Performance Difference |
 | :--- | :-: | :-: | :-: |
-| **Total Indexing Time** | **7.84 s** | **6.04 s** | **23.0% faster** |
-| **Indexing Throughput** | **6,375 docs/sec** | **8,275 docs/sec** | **+1,900 docs/sec** |
-| **Avg Bulk Latency (2,000 batch)** | **199.24 ms** | **173.97 ms** | **-25.27 ms per batch** |
+| **Total Indexing Time** | **4.19 s** | **5.49 s** | **+31% CPU time during segment flush** |
+| **Indexing Throughput** | **11,934 docs/sec** | **9,109 docs/sec** | **-2,825 docs/sec** |
+| **Avg Bulk Latency (2,000 batch)** | **167.6 ms** | **219.6 ms** | **+52 ms per batch** |
+
+> 💡 **Indexing Architectural Trade-off**:
+> - **DocValues Replacement**: `RoaringCodec` does **not** maintain duplicate DocValues files. For `SORTED_SET` (keyword) fields, it completely replaces Lucene's `.dvd`/`.dvm` files with `.rvd`/`.rvm` Roaring Bitmap files.
+> - **Flush-Time Transposition Overhead**: Standard Lucene DocValues simply appends forward document-to-ordinal arrays `(docID → ordinals[])` to disk during flush. `RoaringCodec` transposes these tuples into ordinal bitmaps `(ordinal → RoaringBitmap(docIDs))` during segment flush.
+> - **The Payoff**: Paying a small **~31% indexing time overhead** at segment flush time unlocks a **12x to 439x speedup** on aggregations at search time!
 
 ---
 
 ### 🔑 Key Takeaways
 1. **Unfiltered Multi-Valued Aggregations (439x Speedup)**: Standard Lucene DocValues takes **7.3 seconds** to iterate doc-by-doc over 1M documents, while `roaring_terms` finishes in **13 milliseconds** using hardware `POPCNT` vectorization.
-2. **Bulk Indexing Throughput (+23% Faster)**: Roaring Codec achieves **8,275 docs/sec** (vs 6,375 docs/sec) because transposing ordinal bitmaps during segment flush reduces in-memory doc-to-ordinal array lookup overhead.
-3. **Agg Size Scaling (`size=10` vs `100` vs `500`)**: `roaring_terms` stays sub-45ms even when collecting top 500 buckets.
-4. **Query Filtering (`QueryBitset AND OrdinalBitmap`)**: Filtered aggregations run in **4.68 ms** (vs 12.97 ms standard).
+2. **Agg Size Scaling (`size=10` vs `100` vs `500`)**: `roaring_terms` stays sub-45ms even when collecting top 500 buckets.
+3. **Query Filtering (`QueryBitset AND OrdinalBitmap`)**: Filtered aggregations run in **4.68 ms** (vs 12.97 ms standard).
+4. **Indexing Trade-off (+31% Flush Time)**: Bitset transposition during segment flush adds a ~31% CPU index time cost to grant sub-15ms aggregation responses.
 
 ---
 
