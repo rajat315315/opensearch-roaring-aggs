@@ -4,7 +4,7 @@ import urllib.request
 
 OPENSEARCH_URL = "http://localhost:9200"
 DATASET_PATH = "/run/media/rajat/Ubuntu/enwiki-20120502-lines-1k-fixed-utf8-with-random-label.clean1m.txt"
-DOC_LIMIT = 50000  # Index 50,000 documents for benchmarking
+DOC_LIMIT = 1000000  # Index 1,000,000 documents for full scale benchmark
 
 def http_post(path, data):
     url = f"{OPENSEARCH_URL}{path}"
@@ -140,7 +140,7 @@ def index_wikimedia_data():
             batch_roaring.append(f"{action}\n{doc_str}\n")
             count += 1
 
-            if len(batch_default) >= 2000:
+            if len(batch_default) >= 5000:
                 http_post("/wiki_default/_bulk", "".join(batch_default))
                 http_post("/wiki_roaring/_bulk", "".join(batch_roaring))
                 batch_default = []
